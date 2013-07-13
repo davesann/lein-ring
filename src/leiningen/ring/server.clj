@@ -1,16 +1,8 @@
 (ns leiningen.ring.server
   (:require [leinjacker.deps :as deps]
-            [leiningen.core.classpath :as classpath]
-            [clojure.java.io :as io])
+            [leiningen.ring.leiningen-utils :as lu])
   (:use [leinjacker.eval :only (eval-in-project)]
         [leiningen.ring.util :only (ensure-handler-set! update-project)]))
-
-(defn classpath-dirs 
-  "list of all dirs on the leiningen classpath"
-  [project]
-  (filter
-   #(.isDirectory (io/file %))
-   (classpath/get-classpath project)))
 
 (defn load-namespaces
   "Create require forms for each of the supplied symbols. This exists because
@@ -24,7 +16,7 @@
 
 (defn reload-paths [project]
   (or (get-in project [:ring :reload-paths])
-      (classpath-dirs project)))
+      (lu/classpath-dirs-excluding-testpaths project)))
 
 (defn add-dep [project dep]
   (update-project project deps/add-if-missing dep))
@@ -55,6 +47,9 @@
   (let [project (-> project
                     (assoc-in [:ring :reload-paths] (reload-paths project))
                     (update-in [:ring] merge options))]
+    (println "Reload-paths"  (with-out-str (clojure.pprint/pprint (reload-paths project))))
+    (println "test-paths"  (with-out-str (clojure.pprint/pprint (lu/get-test-paths project))))
+     
     (eval-in-project
      (-> project add-server-dep add-optional-nrepl-dep)
      (if (nrepl? project)
